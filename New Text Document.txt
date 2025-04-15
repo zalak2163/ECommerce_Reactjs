@@ -1,0 +1,110 @@
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import List from './List';
+import Edit from './Edit';
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<List />} />
+        <Route path="/edit/:id" element={<Edit />} />
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
+
+
+
+
+
+
+
+
+
+import { Link } from 'react-router-dom';
+
+<Link to={`/edit/${item.id}`}>
+  <button className="text-red-600 hover:text-red-800 cursor-pointer">
+    <img className="h-4 w-4" src={assets.edit_icon} alt="" />
+  </button>
+</Link>
+
+
+
+
+
+
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { toast } from 'react-toastify';
+
+const Edit = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [product, setProduct] = useState(null);
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const response = await axios.get(`https://localhost:7039/api/Products/${id}`);
+        setProduct(response.data);
+      } catch (error) {
+        toast.error('Failed to fetch product data');
+      }
+    };
+
+    fetchProduct();
+  }, [id]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProduct((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(`https://localhost:7039/api/Products/${id}`, product);
+      toast.success('Product updated successfully');
+      navigate('/');
+    } catch (error) {
+      toast.error('Failed to update product');
+    }
+  };
+
+  if (!product) return <p>Loading...</p>;
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="text"
+        name="name"
+        value={product.name}
+        onChange={handleChange}
+        placeholder="Product Name"
+        required
+      />
+      <textarea
+        name="description"
+        value={product.description}
+        onChange={handleChange}
+        placeholder="Product Description"
+        required
+      />
+      <input
+        type="number"
+        name="price"
+        value={product.price}
+        onChange={handleChange}
+        placeholder="Product Price"
+        required
+      />
+      <button type="submit">Update Product</button>
+    </form>
+  );
+};
+
+export default Edit;
