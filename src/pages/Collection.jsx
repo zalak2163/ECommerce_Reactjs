@@ -10,71 +10,98 @@ const Collection = () => {
   const [filterProducts, setFilterProducts] = useState([]);
   const [category, setCategory] = useState([]);
   const [subCategory, setSubCategory] = useState([]);
-  const [sortType, setSSortType] = useState("relavent");
+  const [sortType, setSortType] = useState("relavent");
+
+  // Load filters and sort from localStorage on first render
+  useEffect(() => {
+    const savedCategory = JSON.parse(localStorage.getItem("category")) || [];
+    const savedSubCategory =
+      JSON.parse(localStorage.getItem("subCategory")) || [];
+    const savedSortType = localStorage.getItem("sortType") || "relavent";
+
+    setCategory(savedCategory);
+    setSubCategory(savedSubCategory);
+    setSortType(savedSortType);
+
+    // Apply filters with the restored values
+    applyFilter(savedCategory, savedSubCategory);
+  }, [products]);
+
+  // Re-apply filtering if filters or search change
+  useEffect(() => {
+    applyFilter(category, subCategory);
+  }, [category, subCategory, search, showSearch, products]);
+
+  // Apply sorting whenever sort type or filtered products change
+  useEffect(() => {
+    if (filterProducts.length > 0) {
+      sortProduct();
+    }
+  }, [sortType, filterProducts.length]);
 
   const toggleCategory = (e) => {
-    if (category.includes(e.target.value)) {
-      setCategory((prev) => prev.filter((item) => item !== e.target.value));
-    } else {
-      setCategory((prev) => [...prev, e.target.value]);
-    }
+    const value = e.target.value;
+    const updated = category.includes(value)
+      ? category.filter((item) => item !== value)
+      : [...category, value];
+    setCategory(updated);
+    localStorage.setItem("category", JSON.stringify(updated));
   };
 
   const toggleSubCategory = (e) => {
-    if (subCategory.includes(e.target.value)) {
-      setSubCategory((prev) => prev.filter((item) => item !== e.target.value));
-    } else {
-      setSubCategory((prev) => [...prev, e.target.value]);
-    }
+    const value = e.target.value;
+    const updated = subCategory.includes(value)
+      ? subCategory.filter((item) => item !== value)
+      : [...subCategory, value];
+    setSubCategory(updated);
+    localStorage.setItem("subCategory", JSON.stringify(updated));
   };
 
-  const applyFilter = () => {
-    let prosuctsCopy = products.slice();
+  const applyFilter = (category, subCategory) => {
+    let filtered = [...products];
 
     if (showSearch && search) {
-      prosuctsCopy = prosuctsCopy.filter((item) =>
+      filtered = filtered.filter((item) =>
         item.name.toLowerCase().includes(search.toLowerCase())
       );
     }
+
     if (category.length > 0) {
-      prosuctsCopy = prosuctsCopy.filter((item) =>
-        category.includes(item.category)
-      );
+      filtered = filtered.filter((item) => category.includes(item.category));
     }
+
     if (subCategory.length > 0) {
-      prosuctsCopy = prosuctsCopy.filter((item) =>
+      filtered = filtered.filter((item) =>
         subCategory.includes(item.subCategory)
       );
     }
-    setFilterProducts(prosuctsCopy);
+
+    setFilterProducts(filtered);
   };
 
   const sortProduct = () => {
-    let fpCopy = filterProducts.slice();
+    if (!filterProducts.length) return;
+
+    let sorted = [...filterProducts];
     switch (sortType) {
       case "low-high":
-        setFilterProducts(fpCopy.sort((a, b) => a.price - b.price));
+        sorted.sort((a, b) => a.price - b.price);
         break;
-
       case "high-low":
-        setFilterProducts(fpCopy.sort((a, b) => b.price - a.price));
+        sorted.sort((a, b) => b.price - a.price);
         break;
-
       default:
-        applyFilter();
-        break;
+        return; // Do nothing for "relavent"
     }
+
+    setFilterProducts(sorted);
   };
 
-  // useEffect(() => {
-  //   setFilterProducts(products);
-  // }, []);
-  useEffect(() => {
-    applyFilter();
-  }, [category, subCategory, search, showSearch]);
-  useEffect(() => {
-    sortProduct();
-  }, [sortType]);
+  const handleSortChange = (e) => {
+    const selected = e.target.value;
+    setSortType(selected);
+    localStorage.setItem("sortType", selected);
+  };
 
   return (
     <div className="flex flex-col sm:flex-row gap-1 sm:gap-10 pt-10 border-t">
@@ -91,6 +118,7 @@ const Collection = () => {
             alt=""
           />
         </p>
+
         {/* Category Filter */}
         <div
           className={`border border-gray-300 pl-5 py-3 mt-6 ${
@@ -99,36 +127,22 @@ const Collection = () => {
         >
           <p className="mb-3 text-sm font-medium">CATEGORYES</p>
           <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
-            <p className="flex gap-2">
-              <input
-                className="w-3"
-                type="checkbox"
-                value={"Men"}
-                onChange={toggleCategory}
-              />
-              Men
-            </p>
-            <p className="flex gap-2">
-              <input
-                className="w-3"
-                type="checkbox"
-                value={"Women"}
-                onChange={toggleCategory}
-              />
-              Women
-            </p>
-            <p className="flex gap-2">
-              <input
-                className="w-3"
-                type="checkbox"
-                value={"Kids"}
-                onChange={toggleCategory}
-              />
-              Kids
-            </p>
+            {["Men", "Women", "Kids"].map((label) => (
+              <label key={label} className="flex gap-2">
+                <input
+                  className="w-3"
+                  type="checkbox"
+                  value={label}
+                  checked={category.includes(label)}
+                  onChange={toggleCategory}
+                />
+                {label}
+              </label>
+            ))}
           </div>
         </div>
-        {/* subCategory Filter */}
+
+        {/* SubCategory Filter */}
         <div
           className={`border border-gray-300 pl-5 py-3 my-5 ${
             showFilter ? "" : "hidden"
@@ -136,65 +150,50 @@ const Collection = () => {
         >
           <p className="mb-3 text-sm font-medium">TYPE</p>
           <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
-            <p className="flex gap-2">
-              <input
-                className="w-3"
-                type="checkbox"
-                value={"Topwear"}
-                onChange={toggleSubCategory}
-              />
-              Topwear
-            </p>
-            <p className="flex gap-2">
-              <input
-                className="w-3"
-                type="checkbox"
-                value={"Bottomwear"}
-                onChange={toggleSubCategory}
-              />
-              Bottomwear
-            </p>
-            <p className="flex gap-2">
-              <input
-                className="w-3"
-                type="checkbox"
-                value={"Winterwear"}
-                onChange={toggleSubCategory}
-              />
-              Winterwear
-            </p>
+            {["Topwear", "Bottomwear", "Winterwear"].map((type) => (
+              <label key={type} className="flex gap-2">
+                <input
+                  className="w-3"
+                  type="checkbox"
+                  value={type}
+                  checked={subCategory.includes(type)}
+                  onChange={toggleSubCategory}
+                />
+                {type}
+              </label>
+            ))}
           </div>
         </div>
       </div>
+
       {/* Right Side */}
       <div className="flex-1">
         <div className="flex justify-between text-base sm:text-2xl mb-4">
           <Title text1={"ALL"} text2={"COLLECTIONS"} />
+
           {/* Product Sort */}
           <select
             className="border-2 border-gray-300 text-sm px-2"
-            onChange={(e) => setSSortType(e.target.value)}
-            name=""
-            id=""
+            onChange={handleSortChange}
+            value={sortType}
           >
             <option value="relavent">Sort by: Relavent</option>
             <option value="low-high">Sort by: Low to High</option>
             <option value="high-low">Sort by: High to Low</option>
           </select>
         </div>
+
         {/* Map Products */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 gap-y-6">
-          {filterProducts.map((item) => {
-            return (
-              <ProductItem
-                key={item.id}
-                name={item.name}
-                id={item.id}
-                price={item.price}
-                images={item.images}
-              />
-            );
-          })}
+          {filterProducts.map((item) => (
+            <ProductItem
+              key={item.id}
+              name={item.name}
+              id={item.id}
+              price={item.price}
+              images={item.images}
+            />
+          ))}
         </div>
       </div>
     </div>

@@ -108,3 +108,253 @@ const Edit = () => {
 };
 
 export default Edit;
+
+
+
+------------------------------------------------------------------------------------------
+
+Backend 
+
+
+using ECommerce.Models;
+using ECommerce.Repositories;
+using Microsoft.AspNetCore.Mvc;
+
+namespace ECommerce.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class AuthController : ControllerBase
+    {
+        private readonly UserRepository _userRepo;
+        private readonly IConfiguration _config;
+
+        public AuthController(UserRepository userRepo, IConfiguration config)
+        {
+            _userRepo = userRepo;
+            _config = config;
+        }
+
+        [HttpPost("register")]
+        public IActionResult Register([FromBody] User user)
+        {
+            string hashedPassword = BCrypt.Net.BCrypt.HashPassword(user.Password);
+            var success = _userRepo.RegisterUser(user.Username, hashedPassword, user.Role);
+
+            if (!success)
+                return BadRequest("Username already exists.");
+
+            return Ok("User registered successfully.");
+        }
+
+        [HttpPost("login")]
+        public IActionResult Login([FromBody] LoginRequest loginRequest)
+        {
+            var user = _userRepo.GetUserByUsername(loginRequest.Username);
+            if (user == null || !BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password))
+                return Unauthorized("Invalid credentials.");
+
+            string token = JwtHelper.GenerateJwtToken(user.Username, user.Role, _config);
+            return Ok(new { token, role = user.Role });
+        }
+    }
+}
+
+
+------------------------------------------------------------------------------
+
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+
+public static class JwtHelper
+{
+    public static string GenerateJwtToken(string username, string role, IConfiguration config)
+    {
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.Name, username),
+            new Claim(ClaimTypes.Role, role)
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:Key"]));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: config["Jwt:Issuer"],
+            audience: config["Jwt:Issuer"],
+            claims: claims,
+            expires: DateTime.Now.AddHours(2),
+            signingCredentials: creds
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+}
+
+-----------------------------------------------------------------
+namespace ECommerce.Models
+{
+    public class LoginRequest
+    {
+        public string Username { get; set; }
+        public string Password { get; set; }
+    }
+
+}
+--------------------------------------------------------------------------
+
+namespace ECommerce.Models
+{
+    public class User
+    {
+        public string Username { get; set; }
+        public string Password { get; set; }  // plain password during input
+        public string Role { get; set; }      // "User" or "Admin"
+    }
+
+}
+
+--------------------------------------------------------------------------
+
+using ECommerce.Models;
+using Microsoft.Data.SqlClient;
+
+namespace ECommerce.Repositories
+{
+    public class UserRepository
+    {
+        private readonly string connectionString;
+
+        public UserRepository(string connectionString)
+        {
+            this.connectionString = connectionString;
+        }
+
+        public bool RegisterUser(string username, string passwordHash, string role)
+        {
+            using (var conn = new SqlConnection(connectionString))
+            {
+                var cmd = new SqlCommand("INSERT INTO Users (Username, PasswordHash, Role) VALUES (@Username, @PasswordHash, @Role)", conn);
+                cmd.Parameters.AddWithValue("@Username", username);
+                cmd.Parameters.AddWithValue("@PasswordHash", passwordHash);
+                cmd.Parameters.AddWithValue("@Role", role);
+
+                conn.Open();
+                try
+                {
+                    cmd.ExecuteNonQuery();
+                    return true;
+                }
+                catch (SqlException)
+                {
+                    return false;
+                }
+            }
+        }
+
+        public User GetUserByUsername(string username)
+        {
+            using (var conn = new SqlConnection(connectionString))
+            {
+                var cmd = new SqlCommand("SELECT Username, PasswordHash, Role FROM Users WHERE Username = @Username", conn);
+                cmd.Parameters.AddWithValue("@Username", username);
+                conn.Open();
+                var reader = cmd.ExecuteReader();
+
+                if (reader.Read())
+                {
+                    return new User
+                    {
+                        Username = reader["Username"].ToString(),
+                        Password = reader["PasswordHash"].ToString(),
+                        Role = reader["Role"].ToString()
+                    };
+                }
+            }
+
+            return null;
+        }
+    }
+
+}
+
+
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Data.SqlClient;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using ECommerce.Models;
+using ECommerce; // For your namespace
+using ECommerce.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddControllers();
+
+// Get connection string
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Register helpers
+builder.Services.AddSingleton(new DatabaseHelper(connectionString));
+builder.Services.AddSingleton(new UserRepository(connectionString));
+
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// JWT Authentication
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        var config = builder.Configuration;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = config["Jwt:Issuer"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:Key"]))
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+// Middleware pipeline
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseCors("AllowAll");
+
+app.UseHttpsRedirection();
+app.UseAuthentication(); // <== Order is important
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();
+
