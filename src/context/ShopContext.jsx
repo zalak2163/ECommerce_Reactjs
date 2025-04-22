@@ -1,118 +1,3 @@
-// import { createContext, useState, useEffect } from "react";
-// import { toast } from "react-toastify";
-// import { useNavigate } from "react-router-dom";
-// import axios from "axios";
-
-// export const ShopContext = createContext();
-
-// const ShopContextProvider = (props) => {
-//   const currency = "$";
-//   const delivery_fee = 10; // Shipping fee
-//   const [search, setSearch] = useState("");
-//   const [showSearch, setShowSearch] = useState(false);
-//   const [cartItems, setCartItems] = useState({});
-//   const [products, setProducts] = useState([]);
-
-//   const navigate = useNavigate();
-
-//   useEffect(() => {
-//     axios
-//       .get("https://localhost:7039/api/Products")
-//       .then((response) => {
-//         setProducts(response.data);
-//         console.log("Fetched products:", response.data); // Log the response for debugging
-//       })
-//       .catch((error) => {
-//         console.error("Error fetching products:", error); // Log error in console for debugging
-//         toast.error("Error fetching products: " + error.message); // Show error message to the user
-//       });
-//   }, []);
-
-//   const addToCart = async (itemId, size) => {
-//     if (!size) {
-//       toast.error("Select Product Size");
-//       return;
-//     }
-//     let cartData = structuredClone(cartItems);
-//     if (cartData[itemId]) {
-//       if (cartData[itemId][size]) {
-//         cartData[itemId][size] += 1;
-//       } else {
-//         cartData[itemId][size] = 1;
-//       }
-//     } else {
-//       cartData[itemId] = {};
-//       cartData[itemId][size] = 1;
-//     }
-//     setCartItems(cartData);
-//   };
-
-//   const getCartCount = () => {
-//     let totalCount = 0;
-//     for (const items in cartItems) {
-//       for (const item in cartItems[items]) {
-//         if (cartItems[items][item] > 0) {
-//           totalCount += cartItems[items][item];
-//         }
-//       }
-//     }
-//     return totalCount;
-//   };
-
-//   const updateQuantity = async (itemId, size, quantity) => {
-//     let cartData = structuredClone(cartItems);
-//     cartData[itemId][size] = quantity;
-//     setCartItems(cartData);
-//   };
-
-//   // Calculate cart amount (subtotal)
-//   const getCartAmount = () => {
-//     let totalAmount = 0;
-//     for (const items in cartItems) {
-//       const itemInfo = products.find(
-//         (product) => product.id === parseInt(items)
-//       ); // Ensure correct type matching
-//       if (itemInfo) {
-//         for (const size in cartItems[items]) {
-//           if (cartItems[items][size] > 0) {
-//             totalAmount += itemInfo.price * cartItems[items][size];
-//           }
-//         }
-//       }
-//     }
-//     return totalAmount;
-//   };
-
-//   // Calculate cart total including shipping fee
-//   const getCartTotal = () => {
-//     const subtotal = getCartAmount();
-//     const total = subtotal + delivery_fee; // Add shipping fee to subtotal
-//     return { subtotal, total };
-//   };
-
-//   const value = {
-//     products,
-//     currency,
-//     delivery_fee,
-//     search,
-//     setSearch,
-//     showSearch,
-//     setShowSearch,
-//     cartItems,
-//     addToCart,
-//     getCartCount,
-//     updateQuantity,
-//     getCartAmount,
-//     getCartTotal, // Added to provide the cart total
-//     navigate,
-//   };
-
-//   return (
-//     <ShopContext.Provider value={value}>{props.children}</ShopContext.Provider>
-//   );
-// };
-
-// export default ShopContextProvider;
 import { createContext, useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -123,6 +8,7 @@ export const ShopContext = createContext();
 const ShopContextProvider = (props) => {
   const currency = "$";
   const delivery_fee = 10;
+
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [products, setProducts] = useState([]);
@@ -132,10 +18,30 @@ const ShopContextProvider = (props) => {
   const [category, setCategory] = useState([]);
   const [subCategory, setSubCategory] = useState([]);
   const [sortType, setSortType] = useState("relavent");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
-  // On app load, restore user and cart
+  // Define fetchProducts function
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get("https://localhost:7039/api/Products");
+      setProducts(response.data);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast.error("Error fetching products: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch products when component mounts
+  useEffect(() => {
+    fetchProducts(); // Call the function here
+  }, []);
+
+  // Restore user session and cart items on page load
   useEffect(() => {
     const token = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
@@ -145,7 +51,6 @@ const ShopContextProvider = (props) => {
       setUser(parsedUser);
       setIsAuthenticated(true);
 
-      // Load cart from storage for this user
       const savedCart = localStorage.getItem(`cart_${parsedUser.username}`);
       if (savedCart) {
         setCartItems(JSON.parse(savedCart));
@@ -161,26 +66,7 @@ const ShopContextProvider = (props) => {
     setSortType(storedSortType);
   }, []);
 
-  // Fetch product data
-  useEffect(() => {
-    const storedProducts = JSON.parse(localStorage.getItem("products"));
-    if (storedProducts) {
-      setProducts(storedProducts);
-    } else {
-      axios
-        .get("https://localhost:7039/api/Products")
-        .then((response) => {
-          setProducts(response.data);
-          localStorage.setItem("products", JSON.stringify(response.data));
-        })
-        .catch((error) => {
-          console.error("Error fetching products:", error);
-          toast.error("Error fetching products: " + error.message);
-        });
-    }
-  }, []);
-
-  // Persist cart when cartItems changes
+  // Persist cart when it changes
   useEffect(() => {
     if (user?.username) {
       localStorage.setItem(`cart_${user.username}`, JSON.stringify(cartItems));
@@ -193,12 +79,6 @@ const ShopContextProvider = (props) => {
     localStorage.setItem("sortType", sortType);
   }, [category, subCategory, sortType]);
 
-  const addProduct = (newProduct) => {
-    const updated = [...products, newProduct];
-    setProducts(updated);
-    localStorage.setItem("products", JSON.stringify(updated));
-  };
-
   const addToCart = async (itemId, size) => {
     if (!isAuthenticated) {
       toast.error("Please login to add items to cart");
@@ -210,7 +90,8 @@ const ShopContextProvider = (props) => {
       return;
     }
 
-    let cartData = structuredClone(cartItems);
+    let cartData = { ...cartItems };
+
     if (cartData[itemId]) {
       cartData[itemId][size] = (cartData[itemId][size] || 0) + 1;
     } else {
@@ -231,18 +112,33 @@ const ShopContextProvider = (props) => {
     }
     return totalCount;
   };
-
   const updateQuantity = async (itemId, size, quantity) => {
-    const updatedCart = structuredClone(cartItems);
+    const updatedCart = { ...cartItems };
+
+    if (!updatedCart[itemId]) {
+      updatedCart[itemId] = {};
+    }
+
     if (quantity <= 0) {
+      // Remove the item size from cart
       delete updatedCart[itemId][size];
       if (Object.keys(updatedCart[itemId]).length === 0) {
         delete updatedCart[itemId];
       }
     } else {
+      // Update the item quantity
       updatedCart[itemId][size] = quantity;
     }
+
     setCartItems(updatedCart);
+
+    // Update localStorage with the modified cart
+    if (user?.username) {
+      localStorage.setItem(
+        `cart_${user.username}`,
+        JSON.stringify(updatedCart)
+      );
+    }
   };
 
   const getCartAmount = () => {
@@ -263,6 +159,11 @@ const ShopContextProvider = (props) => {
   const getCartTotal = () => {
     const subtotal = getCartAmount();
     return { subtotal, total: subtotal + delivery_fee };
+  };
+
+  // Define the addProduct function
+  const addProduct = (newProduct) => {
+    setProducts((prevProducts) => [...prevProducts, newProduct]);
   };
 
   const login = async (username, password) => {
@@ -325,6 +226,8 @@ const ShopContextProvider = (props) => {
 
   const value = {
     products,
+    setProducts,
+    fetchProducts,
     currency,
     delivery_fee,
     search,
@@ -337,7 +240,7 @@ const ShopContextProvider = (props) => {
     updateQuantity,
     getCartAmount,
     getCartTotal,
-    addProduct,
+    addProduct, // Ensure this is part of the context
     login,
     register,
     logout,
@@ -350,6 +253,7 @@ const ShopContextProvider = (props) => {
     sortType,
     setSortType,
     navigate,
+    loading,
   };
 
   return (

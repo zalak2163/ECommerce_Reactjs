@@ -5,18 +5,18 @@ import { assets } from "../assets/assets";
 import CartTotal from "../components/CartTotal";
 
 const Cart = () => {
-  const { products, currency, cartItems, updateQuantity, navigate } =
+  const { products, currency, cartItems, updateQuantity, navigate, user } =
     useContext(ShopContext);
-
   const [cartData, setCartData] = useState([]);
 
+  // Update cart data when cartItems or products change
   useEffect(() => {
     const tempData = [];
     for (const items in cartItems) {
       for (const item in cartItems[items]) {
         if (cartItems[items][item] > 0) {
           tempData.push({
-            id: items, // 'items' is a string
+            id: items,
             size: item,
             quantity: cartItems[items][item],
           });
@@ -24,9 +24,24 @@ const Cart = () => {
       }
     }
     setCartData(tempData);
-    console.log("Cart Data:", tempData); // Log cart data for debugging
-    console.log("Products:", products); // Log products array for debugging
+    console.log("Cart Data:", tempData); // Debugging cart data
   }, [cartItems, products]);
+
+  // Update the quantity and handle localStorage
+  const handleUpdateQuantity = (itemId, size, quantity) => {
+    if (quantity <= 0) {
+      // Remove item from cart
+      updateQuantity(itemId, size, 0);
+    } else {
+      // Update the quantity of the item
+      updateQuantity(itemId, size, quantity);
+    }
+
+    // Save updated cart to localStorage
+    if (user?.username) {
+      localStorage.setItem(`cart_${user.username}`, JSON.stringify(cartItems));
+    }
+  };
 
   return (
     <div className="border-t pt-14">
@@ -35,14 +50,13 @@ const Cart = () => {
       </div>
       <div>
         {cartData.length === 0 ? (
-          <p>Your cart is empty.</p> // Display message if no items in the cart
+          <p>Your cart is empty.</p>
         ) : (
           cartData.map((item) => {
             const productData = products.find(
-              (product) => product.id.toString() === item.id.toString() // Ensure both are strings
+              (product) => product.id.toString() === item.id.toString()
             );
 
-            // If product data is not found, skip rendering this item
             if (!productData) {
               return (
                 <div
@@ -92,7 +106,7 @@ const Cart = () => {
                   onChange={(e) =>
                     e.target.value === "" || e.target.value === "0"
                       ? null
-                      : updateQuantity(
+                      : handleUpdateQuantity(
                           item.id,
                           item.size,
                           Number(e.target.value)
@@ -104,7 +118,7 @@ const Cart = () => {
                   defaultValue={item.quantity}
                 />
                 <img
-                  onClick={() => updateQuantity(item.id, item.size, 0)}
+                  onClick={() => handleUpdateQuantity(item.id, item.size, 0)} // Delete item when quantity is set to 0
                   className="w-4 mr-4 sm:w-5 cursor-pointer"
                   src={assets.bin_icon}
                   alt="Delete"
