@@ -1,268 +1,3 @@
-// import { createContext, useState, useEffect } from "react";
-// import { toast } from "react-toastify";
-// import { useNavigate } from "react-router-dom";
-// import axios from "axios";
-
-// export const ShopContext = createContext();
-
-// const ShopContextProvider = (props) => {
-//   const currency = "$";
-//   const delivery_fee = 10;
-
-//   const [search, setSearch] = useState("");
-//   const [showSearch, setShowSearch] = useState(false);
-//   const [products, setProducts] = useState([]);
-//   const [cartItems, setCartItems] = useState({});
-//   const [user, setUser] = useState(null);
-//   const [isAuthenticated, setIsAuthenticated] = useState(false);
-//   const [category, setCategory] = useState([]);
-//   const [subCategory, setSubCategory] = useState([]);
-//   const [sortType, setSortType] = useState("relavent");
-//   const [loading, setLoading] = useState(false);
-
-//   const navigate = useNavigate();
-
-//   // Define fetchProducts function
-//   const fetchProducts = async () => {
-//     setLoading(true);
-//     try {
-//       const response = await axios.get("https://localhost:7039/api/Products");
-//       setProducts(response.data);
-//     } catch (error) {
-//       console.error("Error fetching products:", error);
-//       toast.error("Error fetching products: " + error.message);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   // Fetch products when component mounts
-//   useEffect(() => {
-//     fetchProducts(); // Call the function here
-//   }, []);
-
-//   // Restore user session and cart items on page load
-//   useEffect(() => {
-//     const token = localStorage.getItem("token");
-//     const storedUser = localStorage.getItem("user");
-
-//     if (token && storedUser) {
-//       const parsedUser = JSON.parse(storedUser);
-//       setUser(parsedUser);
-//       setIsAuthenticated(true);
-
-//       const savedCart = localStorage.getItem(`cart_${parsedUser.username}`);
-//       if (savedCart) {
-//         setCartItems(JSON.parse(savedCart));
-//       }
-//     }
-
-//     const storedCategory = JSON.parse(localStorage.getItem("category")) || [];
-//     const storedSubCategory =
-//       JSON.parse(localStorage.getItem("subCategory")) || [];
-//     const storedSortType = localStorage.getItem("sortType") || "relavent";
-//     setCategory(storedCategory);
-//     setSubCategory(storedSubCategory);
-//     setSortType(storedSortType);
-//   }, []);
-
-//   // Persist cart when it changes
-//   useEffect(() => {
-//     if (user?.username) {
-//       localStorage.setItem(`cart_${user.username}`, JSON.stringify(cartItems));
-//     }
-//   }, [cartItems, user]);
-
-//   useEffect(() => {
-//     localStorage.setItem("category", JSON.stringify(category));
-//     localStorage.setItem("subCategory", JSON.stringify(subCategory));
-//     localStorage.setItem("sortType", sortType);
-//   }, [category, subCategory, sortType]);
-
-//   const addToCart = async (itemId, size) => {
-//     if (!isAuthenticated) {
-//       toast.error("Please login to add items to cart");
-//       return;
-//     }
-
-//     if (!size) {
-//       toast.error("Select Product Size");
-//       return;
-//     }
-
-//     let cartData = { ...cartItems };
-
-//     if (cartData[itemId]) {
-//       cartData[itemId][size] = (cartData[itemId][size] || 0) + 1;
-//     } else {
-//       cartData[itemId] = { [size]: 1 };
-//     }
-
-//     setCartItems(cartData);
-//   };
-
-//   const getCartCount = () => {
-//     if (!isAuthenticated) return 0;
-
-//     let totalCount = 0;
-//     for (const itemId in cartItems) {
-//       for (const size in cartItems[itemId]) {
-//         totalCount += cartItems[itemId][size];
-//       }
-//     }
-//     return totalCount;
-//   };
-//   const updateQuantity = async (itemId, size, quantity) => {
-//     const updatedCart = { ...cartItems };
-
-//     if (!updatedCart[itemId]) {
-//       updatedCart[itemId] = {};
-//     }
-
-//     if (quantity <= 0) {
-//       // Remove the item size from cart
-//       delete updatedCart[itemId][size];
-//       if (Object.keys(updatedCart[itemId]).length === 0) {
-//         delete updatedCart[itemId];
-//       }
-//     } else {
-//       // Update the item quantity
-//       updatedCart[itemId][size] = quantity;
-//     }
-
-//     setCartItems(updatedCart);
-
-//     // Update localStorage with the modified cart
-//     if (user?.username) {
-//       localStorage.setItem(
-//         `cart_${user.username}`,
-//         JSON.stringify(updatedCart)
-//       );
-//     }
-//   };
-
-//   const getCartAmount = () => {
-//     if (!isAuthenticated) return 0;
-
-//     let totalAmount = 0;
-//     for (const itemId in cartItems) {
-//       const item = products.find((p) => p.id === parseInt(itemId));
-//       if (item) {
-//         for (const size in cartItems[itemId]) {
-//           totalAmount += item.price * cartItems[itemId][size];
-//         }
-//       }
-//     }
-//     return totalAmount;
-//   };
-
-//   const getCartTotal = () => {
-//     const subtotal = getCartAmount();
-//     return { subtotal, total: subtotal + delivery_fee };
-//   };
-
-//   // Define the addProduct function
-//   const addProduct = (newProduct) => {
-//     setProducts((prevProducts) => [...prevProducts, newProduct]);
-//   };
-
-//   const login = async (username, password) => {
-//     try {
-//       const response = await axios.post(
-//         "https://localhost:7039/api/Auth/login",
-//         { username, password }
-//       );
-
-//       const { token, role } = response.data;
-
-//       localStorage.setItem("token", token);
-//       localStorage.setItem("user", JSON.stringify({ username, role }));
-
-//       setUser({ username, role });
-//       setIsAuthenticated(true);
-
-//       const savedCart = localStorage.getItem(`cart_${username}`);
-//       if (savedCart) {
-//         setCartItems(JSON.parse(savedCart));
-//       } else {
-//         setCartItems({});
-//       }
-
-//       toast.success("Login successful!");
-//       navigate("/");
-//     } catch (error) {
-//       toast.error("Login failed: " + (error.response?.data || error.message));
-//     }
-//   };
-
-//   const register = async (username, password) => {
-//     try {
-//       await axios.post("https://localhost:7039/api/Auth/register", {
-//         username,
-//         password,
-//       });
-//       toast.success("Registration successful! Please log in.");
-//     } catch (error) {
-//       toast.error(
-//         "Registration failed: " + (error.response?.data || error.message)
-//       );
-//     }
-//   };
-
-//   const logout = () => {
-//     if (user?.username) {
-//       localStorage.setItem(`cart_${user.username}`, JSON.stringify(cartItems));
-//     }
-
-//     setUser(null);
-//     setIsAuthenticated(false);
-//     setCartItems({});
-//     localStorage.removeItem("token");
-//     localStorage.removeItem("user");
-
-//     toast.success("Logged out successfully!");
-//     navigate("/login");
-//   };
-
-//   const value = {
-//     products,
-//     setProducts,
-//     fetchProducts,
-//     currency,
-//     delivery_fee,
-//     search,
-//     setSearch,
-//     showSearch,
-//     setShowSearch,
-//     cartItems,
-//     addToCart,
-//     getCartCount,
-//     updateQuantity,
-//     getCartAmount,
-//     getCartTotal,
-//     addProduct, // Ensure this is part of the context
-//     login,
-//     register,
-//     logout,
-//     user,
-//     isAuthenticated,
-//     category,
-//     setCategory,
-//     subCategory,
-//     setSubCategory,
-//     sortType,
-//     setSortType,
-//     navigate,
-//     loading,
-//   };
-
-//   return (
-//     <ShopContext.Provider value={value}>{props.children}</ShopContext.Provider>
-//   );
-// };
-
-// export default ShopContextProvider;
-
 import { createContext, useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -279,6 +14,7 @@ const ShopContextProvider = (props) => {
   const [products, setProducts] = useState([]);
   const [cartItems, setCartItems] = useState([]);
   const [user, setUser] = useState(null);
+  const [orders, setOrders] = useState([]); // Added orders state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [category, setCategory] = useState([]);
   const [subCategory, setSubCategory] = useState([]);
@@ -311,6 +47,19 @@ const ShopContextProvider = (props) => {
     }
   };
 
+  const fetchOrders = async (userId) => {
+    // Fetch orders for the logged-in user
+    try {
+      const response = await axios.get(
+        `https://localhost:7039/api/Orders/user-orders/${userId}`
+      );
+      setOrders(response.data || []); // Set the orders in the context state
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      toast.error("Error fetching orders: " + error.message);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -324,6 +73,7 @@ const ShopContextProvider = (props) => {
       setUser(parsedUser);
       setIsAuthenticated(true);
       fetchCart(parsedUser.userId);
+      fetchOrders(parsedUser.userId); // Fetch orders after user authentication
     }
 
     const storedCategory = JSON.parse(localStorage.getItem("category")) || [];
@@ -440,6 +190,7 @@ const ShopContextProvider = (props) => {
       setIsAuthenticated(true);
 
       await fetchCart(userId);
+      fetchOrders(userId); // Fetch orders after login
 
       toast.success("Login successful!");
       navigate("/");
@@ -466,6 +217,7 @@ const ShopContextProvider = (props) => {
     setUser(null);
     setIsAuthenticated(false);
     setCartItems([]);
+    setOrders([]); // Clear orders on logout
     localStorage.removeItem("token");
     localStorage.removeItem("user");
 
@@ -495,6 +247,8 @@ const ShopContextProvider = (props) => {
     logout,
     user,
     isAuthenticated,
+    orders, // Provided orders in the context
+    setOrders, // Set orders in the context
     category,
     setCategory,
     subCategory,

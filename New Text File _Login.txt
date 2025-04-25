@@ -1,949 +1,267 @@
-UPDATE Users SET Role = 'Admin' WHERE Username = 'john';
-
-
-
-
-
-import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import { AuthContext } from "../context/AuthContext";
-
-const Login = () => {
-  const [currentState, setCurrentState] = useState("Sign Up");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const { setRole, setToken } = useContext(AuthContext); // Assuming you're storing the token here
-  const navigate = useNavigate();
-
-  const onSubmitHandler = async (event) => {
-    event.preventDefault();
-    setError(""); // Reset error message on submit
-
-    try {
-      if (currentState === "Login") {
-        // 🔐 LOGIN request
-        const res = await axios.post("http://localhost:5000/api/auth/login", {
-          username: email, // Backend expects email as username (adjust if needed)
-          password: password, // Ensure the casing matches what the backend expects
-        });
-
-        console.log(res); // Log the response data to check if it's correct
-
-        if (res.data?.token) {
-          // If login is successful, store the JWT token and role
-          setToken(res.data.token); // Store JWT token in context or global state
-          setRole(res.data.role); // Store role in context
-
-          // Navigate based on role
-          if (res.data.role === "Admin") {
-            navigate("/admin");
-          } else if (res.data.role === "User") {
-            navigate("/");
-          } else {
-            setError("Invalid role or credentials.");
-          }
-        } else {
-          setError("Login failed. Please check your credentials.");
-        }
-      } else {
-        // 📝 REGISTER request (ensure this is also correctly handled)
-        const res = await axios.post("https://localhost:7039/api/Auth/login", {
-          username: email, // Ensure backend expects "email" or adjust accordingly
-          password: password,
-          role: "User", // Assuming default role is 'User', change as needed
-        });
-
-        if (res.data?.message === "User registered successfully.") {
-          setRole("User"); // Set role to 'User' after successful registration
-          navigate("/"); // Navigate to the homepage or user dashboard
-        } else {
-          setError("Registration failed. Please try again.");
-        }
-      }
-    } catch (err) {
-      console.error("Request failed: ", err); // Log the full error for debugging
-
-      if (err.response) {
-        // If there's an error response, log the response details
-        console.error("Error Response:", err.response);
-
-        const errorMessages =
-          err.response?.data?.errors || err.response?.data?.message;
-        setError(errorMessages || "Something went wrong. Please try again.");
-      } else {
-        // If no response from the server, log a network error
-        setError("Network error or server unavailable.");
-      }
-    }
-  };
-
-  return (
-    <>
-      <form
-        onSubmit={onSubmitHandler}
-        className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto mt-14 gap-4 text-gray-800"
-      >
-        <div className="inline-flex items-center gap-2 mb-2 mt-10">
-          <p className="prata-regular text-3xl">{currentState}</p>
-          <hr className="border-none h-[1.5px] w-8 bg-gray-800" />
-        </div>
-
-        {/* If not Login, show the name input field */}
-        {currentState === "Login" ? null : (
-          <input
-            type="text"
-            className="w-full px-3 py-2 border border-gray-800"
-            placeholder="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        )}
-
-        {/* Email Input */}
-        <input
-          type="email"
-          className="w-full px-3 py-2 border border-gray-800"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-
-        {/* Password Input */}
-        <input
-          type="password"
-          className="w-full px-3 py-2 border border-gray-800"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-
-        {/* Error Message */}
-        {error && (
-          <p className="text-sm text-red-500 w-full text-left -mt-2">{error}</p>
-        )}
-
-        {/* Forgot Password and switch between login/signup */}
-        <div className="w-full flex justify-between text-sm mt-[-8px]">
-          <p className="cursor-pointer">Forgot your password?</p>
-          {currentState === "Login" ? (
-            <p
-              onClick={() => setCurrentState("Sign Up")}
-              className="cursor-pointer"
-            >
-              Create account
-            </p>
-          ) : (
-            <p
-              onClick={() => setCurrentState("Login")}
-              className="cursor-pointer"
-            >
-              Login Here
-            </p>
-          )}
-        </div>
-
-        {/* Submit Button */}
-        <button className="bg-black text-white font-light px-8 py-2 mt-4">
-          {currentState === "Login" ? "Sign In" : "Sign Up"}
-        </button>
-      </form>
-    </>
-  );
-};
-
-export default Login;
-
-
-
-
-
--------------------------------------------------------------------------------------------------------------------
-
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-
-const Register = () => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const navigate = useNavigate();
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Here, you would send this data to a backend API
-    console.log("User Registered:", { username, password });
-
-    // Redirect to login page after successful registration
-    navigate("/login");
-  };
-
-  return (
-    <div className="register-form">
-      <h2>Register</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <button type="submit">Register</button>
-      </form>
-    </div>
-  );
-};
-
-export default Register;
-
-
----------------------------------------------------------------------------------------------------------
-
-import React, { createContext, useState, useEffect } from "react";
-
-// Create context for Auth
-export const AuthContext = createContext();
-
-// Create the AuthProvider component
-export const AuthProvider = ({ children }) => {
-  const [role, setRole] = useState(null); // Default is null, can be "user", "admin", etc.
-
-  useEffect(() => {
-    const storedRole = localStorage.getItem("role");
-    if (storedRole) {
-      setRole(storedRole); // Restore role from localStorage
-    }
-  }, []);
-
-  const login = (userRole) => {
-    setRole(userRole);
-    localStorage.setItem("role", userRole);
-  };
-
-  const logout = () => {
-    setRole(null);
-    localStorage.removeItem("role");
-  };
-
-  return (
-    <AuthContext.Provider value={{ role, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-
---------------------------------------------------------------------------------------------------------
-
-import React, { useState, useContext, useEffect } from "react";
-import { assets } from "../assets/assets";
-import { NavLink, Link } from "react-router-dom";
-import { ShopContext } from "../context/ShopContext";
-import { AuthContext } from "../context/AuthContext"; // Assuming AuthContext provides user info
-
-const Navbar = () => {
-  const [visible, setVisible] = useState(false);
-  const { setShowSearch, getCartCount } = useContext(ShopContext);
-  const { isLoggedIn, role } = useContext(AuthContext); // Check login state and role
-
-  useEffect(() => {
-    // If user is logged in, show appropriate links, otherwise show login
-  }, [isLoggedIn, role]);
-
-  return (
-    <div className="flex items-center justify-between py-5 px-17 px-4/1 font-medium">
-      <Link to={"/"}>
-        <img src={assets.forever_icon} className="w-36" alt="Logo" />
-      </Link>
-
-      <ul className="hidden sm:flex gap-5 text-sm text-gray-700">
-        {/* If user is logged in */}
-        {isLoggedIn ? (
-          <>
-            {/* Regular User Menu */}
-            {role !== "Admin" && (
-              <>
-                <NavLink to="/" className="flex flex-col items-center gap-1">
-                  <p>HOME</p>
-                  <hr className="w-2/4 border-none h-[1.5px] bg-gray-700 hidden" />
-                </NavLink>
-                <NavLink
-                  to="/collaction"
-                  className="flex flex-col items-center gap-1"
-                >
-                  <p>COLLECTION</p>
-                  <hr className="w-2/4 border-none h-[1.5px] bg-gray-700 hidden" />
-                </NavLink>
-                <NavLink
-                  to="/about"
-                  className="flex flex-col items-center gap-1"
-                >
-                  <p>ABOUT</p>
-                  <hr className="w-2/4 border-none h-[1.5px] bg-gray-700 hidden" />
-                </NavLink>
-                <NavLink
-                  to="/contact"
-                  className="flex flex-col items-center gap-1"
-                >
-                  <p>CONTACT</p>
-                  <hr className="w-2/4 border-none h-[1.5px] bg-gray-700 hidden" />
-                </NavLink>
-              </>
-            )}
-
-            {/* Admin Menu (only visible to Admin) */}
-            {role === "Admin" && (
-              <NavLink to="/admin" className="flex flex-col items-center gap-1">
-                <p>ADMIN</p>
-                <hr className="w-2/4 border-none h-[1.5px] bg-gray-700 hidden" />
-              </NavLink>
-            )}
-          </>
-        ) : (
-          // If not logged in, show Login/Register
-          <NavLink to="/login" className="flex flex-col items-center gap-1">
-            <p>LOGIN</p>
-            <hr className="w-2/4 border-none h-[1.5px] bg-gray-700 hidden" />
-          </NavLink>
-        )}
-      </ul>
-
-      {/* Profile, Cart, and Search */}
-      <div className="flex items-center gap-6">
-        <img
-          onClick={() => setShowSearch(true)}
-          src={assets.search_icon}
-          className="w-5 cursor-pointer"
-          alt="Search Icon"
-        />
-        <div className="group relative">
-          {isLoggedIn ? (
-            // If logged in, show profile icon
-            <Link to={"/profile"}>
-              <img
-                src={assets.profile_icon}
-                className="w-5 cursor-pointer"
-                alt="Profile Icon"
-              />
-            </Link>
-          ) : (
-            // If not logged in, show login link
-            <Link to={"/login"}>
-              <img
-                src={assets.profile_icon}
-                className="w-5 cursor-pointer"
-                alt="Login Icon"
-              />
-            </Link>
-          )}
-
-          <div className="group-hover:block hidden absolute dropdown-menu right-0 pt-4">
-            <div className="flex flex-col gap-2 w-36 py-3 px-5 bg-slate-100 text-gray-500 rounded">
-              {isLoggedIn ? (
-                <>
-                  <p className="cursor-pointer hover:text-black">My Profile</p>
-                  <p className="cursor-pointer hover:text-black">Orders</p>
-                  <p className="cursor-pointer hover:text-black">Logout</p>
-                </>
-              ) : (
-                <p className="cursor-pointer hover:text-black">Login</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <Link to={"/cart"} className="relative">
-          <img className="w-5 min-w-5" src={assets.cart_icon} alt="Cart" />
-          <p
-            className="absolute right-[-5px] bottom-[-5px] w-4 text-center leading-4 
-            bg-black text-white aspect-square rounded-full text-[8px]"
-          >
-            {getCartCount()}
-          </p>
-        </Link>
-        <img
-          onClick={() => setVisible(true)}
-          src={assets.menu_icon}
-          className="w-5 cursor-pointer sm:hidden"
-          alt="Menu Icon"
-        />
-      </div>
-
-      {/* Sidebar menu for smaller screens */}
-      <div
-        className={`absolute top-0 right-0 bottom-0 overflow-hidden bg-white transition-all ${
-          visible ? "w-full" : "w-0"
-        }`}
-      >
-        <div className="flex flex-col text-gray-600">
-          <div
-            onClick={() => setVisible(false)}
-            className="flex item-center gap-4 p-3 cursor-pointer"
-          >
-            <img
-              className="h-4 rotate-180"
-              src={assets.dropdown_icon}
-              alt="Back"
-            />
-            <p>Back</p>
-          </div>
-          <NavLink
-            onClick={() => setVisible(false)}
-            className="py-2 pl-6 border"
-            to="/"
-          >
-            HOME
-          </NavLink>
-          <NavLink
-            onClick={() => setVisible(false)}
-            className="py-2 pl-6 border"
-            to="/collaction"
-          >
-            COLLECTION
-          </NavLink>
-          <NavLink
-            onClick={() => setVisible(false)}
-            className="py-2 pl-6 border"
-            to="/about"
-          >
-            ABOUT
-          </NavLink>
-          <NavLink
-            onClick={() => setVisible(false)}
-            className="py-2 pl-6 border"
-            to="/contact"
-          >
-            CONTACT
-          </NavLink>
-
-          {/* Show Admin menu items only for Admin */}
-          {role === "Admin" && (
-            <NavLink
-              onClick={() => setVisible(false)}
-              className="py-2 pl-6 border"
-              to="/admin"
-            >
-              Admin Dashboard
-            </NavLink>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default Navbar;
-
--------------------------------------------------------------------------------------------------------------------------
-
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import "./index.css";
-import App from "./App.jsx";
-import { BrowserRouter } from "react-router-dom";
-import ShopContextProvider from "./context/ShopContext.jsx";
-import { AuthProvider } from "./context/AuthContext"; // Corrected import
-
-createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <ShopContextProvider>
-          <App />
-        </ShopContextProvider>
-      </AuthProvider>
-    </BrowserRouter>
-  </StrictMode>
-);
- 
- --------------------------------------------------------------------------------------------------------------
- 
- import { Routes, Route, Navigate } from "react-router-dom";
-import PrivateRoute from "./components/PrivateRoute"; // Default import
-import Home from "./pages/Home";
-import Collection from "./pages/Collection";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import Product from "./pages/Product";
-import Cart from "./pages/Cart";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import PlaceOrder from "./pages/PlaceOrder";
-import Orders from "./pages/Orders";
-import Admin from "./Admin/Admin";
-import Add from "./Admin/Add";
-import List from "./Admin/List";
-import Edit from "./Admin/Edit";
-import AdminOrders from "./Admin/AdminOrders";
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-import SearchBar from "./components/SearchBar/";
-import { ToastContainer } from "react-toastify";
-import { useContext } from "react";
-import { AuthContext } from "./context/AuthContext";
-
-export const currency = "$";
-
-function App() {
-  const { isLoggedIn, role } = useContext(AuthContext);
-
-  return (
-    <>
-      <Navbar />
-      <SearchBar />
-      <div className="px-4 sm:px-[5vh] md:px-[7vh] lg:px-[9vh]">
-        <ToastContainer />
-        <Routes>
-          {/* Default redirect to login if not logged in */}
-          <Route
-            path="/"
-            element={
-              isLoggedIn ? <Navigate to="/home" /> : <Navigate to="/login" />
-            }
-          />
-
-          {/* Auth Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-
-          {/* Protected Routes for Users */}
-          <Route
-            path="/home"
-            element={
-              <PrivateRoute element={<Home />} allowedRoles={["User"]} />
-            }
-          />
-          <Route
-            path="/collection"
-            element={
-              <PrivateRoute element={<Collection />} allowedRoles={["User"]} />
-            }
-          />
-          <Route
-            path="/about"
-            element={
-              <PrivateRoute element={<About />} allowedRoles={["User"]} />
-            }
-          />
-          <Route
-            path="/contact"
-            element={
-              <PrivateRoute element={<Contact />} allowedRoles={["User"]} />
-            }
-          />
-          <Route
-            path="/product/:id"
-            element={
-              <PrivateRoute element={<Product />} allowedRoles={["User"]} />
-            }
-          />
-          <Route
-            path="/cart"
-            element={
-              <PrivateRoute element={<Cart />} allowedRoles={["User"]} />
-            }
-          />
-          <Route
-            path="/place-order"
-            element={
-              <PrivateRoute element={<PlaceOrder />} allowedRoles={["User"]} />
-            }
-          />
-          <Route
-            path="/orders"
-            element={
-              <PrivateRoute element={<Orders />} allowedRoles={["User"]} />
-            }
-          />
-
-          {/* Admin Routes - Protected */}
-          <Route
-            path="/admin"
-            element={
-              <PrivateRoute element={<Admin />} allowedRoles={["Admin"]} />
-            }
-          />
-          <Route
-            path="/add"
-            element={
-              <PrivateRoute element={<Add />} allowedRoles={["Admin"]} />
-            }
-          />
-          <Route
-            path="/list"
-            element={
-              <PrivateRoute element={<List />} allowedRoles={["Admin"]} />
-            }
-          />
-          <Route
-            path="/edit/:id"
-            element={
-              <PrivateRoute element={<Edit />} allowedRoles={["Admin"]} />
-            }
-          />
-          <Route
-            path="/adminorders"
-            element={
-              <PrivateRoute
-                element={<AdminOrders />}
-                allowedRoles={["Admin"]}
-              />
-            }
-          />
-
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/login" />} />
-        </Routes>
-        <Footer />
-      </div>
-    </>
-  );
-}
-
-export default App;
-
------------------------------------------------------------------------------------------------------
-
-
-
-import React, { useState, useContext, useEffect } from "react";
-import { NavLink, Link } from "react-router-dom";
-import { ShopContext } from "../context/ShopContext";
-import { assets } from "../assets/assets";
-
-const Navbar = () => {
-  const [visible, setVisible] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false); // State for dropdown visibility
-  const { setShowSearch, getCartCount, user, logout } = useContext(ShopContext);
-
-  // Log user for debugging
-  useEffect(() => {
-    console.log("Logged-in user:", user);
-  }, [user]);
-
-  // Ensure case-insensitive check
-  const isAdmin = user?.role?.toLowerCase() === "admin";
-
-  const handleLogout = () => {
-    logout();
-    setDropdownOpen(false); // Close the dropdown after logout
-  };
-
-  return (
-    <div className="flex items-center justify-between py-5 px-17 px-4/1 font-medium">
-      <Link to={"/"}>
-        <img src={assets.forever_icon} className="w-36" alt="" />
-      </Link>
-
-      <ul className="hidden sm:flex gap-5 text-sm text-gray-700">
-        <NavLink to="/" className="flex flex-col items-center gap-1">
-          <p>HOME</p>
-          <hr className="w-2/4 border-none h-[1.5px] bg-gray-700 hidden" />
-        </NavLink>
-        <NavLink to="/collaction" className="flex flex-col items-center gap-1">
-          <p>COLLECTION</p>
-          <hr className="w-2/4 border-none h-[1.5px] bg-gray-700 hidden" />
-        </NavLink>
-        <NavLink to="/about" className="flex flex-col items-center gap-1">
-          <p>ABOUT</p>
-          <hr className="w-2/4 border-none h-[1.5px] bg-gray-700 hidden" />
-        </NavLink>
-        <NavLink to="/contact" className="flex flex-col items-center gap-1">
-          <p>CONTACT</p>
-          <hr className="w-2/4 border-none h-[1.5px] bg-gray-700 hidden" />
-        </NavLink>
-
-        {isAdmin && (
-          <NavLink to="/admin" className="flex flex-col items-center gap-1">
-            <p>ADMIN</p>
-            <hr className="w-2/4 border-none h-[1.5px] bg-gray-700 hidden" />
-          </NavLink>
-        )}
-      </ul>
-
-      <div className="flex items-center gap-6">
-        <img
-          onClick={() => setShowSearch(true)}
-          src={assets.search_icon}
-          className="w-5 cursor-pointer"
-          alt="Search"
-        />
-
-        <div className="relative">
-          <img
-            onClick={() => setDropdownOpen(!dropdownOpen)} // Toggle dropdown on profile click
-            src={assets.profile_icon}
-            className="w-5 cursor-pointer"
-            alt="Profile"
-          />
-
-          {/* Dropdown Menu */}
-          {dropdownOpen && (
-            <div className="absolute right-0 pt-4 z-50">
-              <div className="flex flex-col gap-2 w-36 py-3 px-5 bg-slate-100 text-gray-500 rounded shadow-lg">
-                {/* Conditionally render "My Profile" or username */}
-                <p className="cursor-pointer hover:text-black">
-                  {user ? user.username : "My Profile"}
-                </p>
-                <p className="cursor-pointer hover:text-black">Orders</p>
-                <p
-                  className="cursor-pointer hover:text-black"
-                  onClick={handleLogout} // Perform logout when clicked
-                >
-                  Logout
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <Link to={"/cart"} className="relative">
-          <img className="w-5 min-w-5" src={assets.cart_icon} alt="Cart" />
-          <p
-            className="absolute right-[-5px] bottom-[-5px] w-4 text-center leading-4 
-            bg-black text-white aspect-square rounded-full text-[8px]"
-          >
-            {getCartCount()}
-          </p>
-        </Link>
-
-        <img
-          onClick={() => setVisible(true)}
-          src={assets.menu_icon}
-          className="w-5 cursor-pointer sm:hidden"
-          alt="Menu"
-        />
-      </div>
-
-      {/* Sidebar menu for smaller screens */}
-      <div
-        className={`absolute top-0 right-0 bottom-0 overflow-hidden bg-white transition-all ${
-          visible ? "w-full" : "w-0"
-        }`}
-      >
-        <div className="flex flex-col text-gray-600">
-          <div
-            onClick={() => setVisible(false)}
-            className="flex item-center gap-4 p-3 cursor-pointer"
-          >
-            <img className="h-4 rotate-180" src={assets.dropdown_icon} alt="" />
-            <p>Back</p>
-          </div>
-
-          <NavLink
-            onClick={() => setVisible(false)}
-            className="py-2 pl-6 border"
-            to="/"
-          >
-            HOME
-          </NavLink>
-          <NavLink
-            onClick={() => setVisible(false)}
-            className="py-2 pl-6 border"
-            to="/collaction"
-          >
-            COLLECTION
-          </NavLink>
-          <NavLink
-            onClick={() => setVisible(false)}
-            className="py-2 pl-6 border"
-            to="/about"
-          >
-            ABOUT
-          </NavLink>
-          <NavLink
-            onClick={() => setVisible(false)}
-            className="py-2 pl-6 border"
-            to="/contact"
-          >
-            CONTACT
-          </NavLink>
-
-          {isAdmin && (
-            <NavLink
-              onClick={() => setVisible(false)}
-              className="py-2 pl-6 border"
-              to="/admin"
-            >
-              ADMIN
-            </NavLink>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default Navbar;
-
-
----------------------------------------------------------------------------------------------
-
-import React, { useContext, useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ShopContext } from "../context/ShopContext";
-import { assets } from "../assets/assets";
-import RelatedProducts from "../components/RelatedProducts";
-
-const Product = () => {
-  const { id } = useParams();
-  const navigate = useNavigate(); // This will be used for redirection
-  const { products, currency, addToCart, user } = useContext(ShopContext);
-  const [productData, setProductData] = useState(null);
-  const [images, setImages] = useState([]);
-  const [mainImage, setMainImage] = useState("");
-  const [size, setSize] = useState("");
-
-  const fetchProductData = async () => {
-    const productId = Number(id);
-    const product = products.find((item) => item.id === productId);
-
-    if (product) {
-      setProductData(product);
-
-      const imageArray = product.images
-        ? product.images.split(",").map((img) => img.trim())
-        : [];
-      setImages(imageArray);
-      setMainImage(imageArray[0] || "");
-
-      const sizeArray = product.sizes ? product.sizes.split(",") : [];
-      if (sizeArray.length > 0) {
-        setSize(sizeArray[0]);
-      }
-    } else {
-      console.log("Product not found for id:", productId);
-    }
-  };
-
-  useEffect(() => {
-    if (products.length > 0) {
-      fetchProductData();
-    }
-  }, [id, products]);
-
-  // Redirect to login page if user is not logged in
-  const handleAddToCart = () => {
-    if (!user) {
-      // If user is not logged in
-      navigate("/login"); // Redirect to the login page
-    } else {
-      addToCart(productData.id, size); // If user is logged in, add to cart
-    }
-  };
-
-  if (!productData) {
-    return <div>Product not found or loading...</div>;
-  }
-
-  return (
-    <div className="border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100">
-      {/* Product Layout */}
-      <div className="flex flex-col sm:flex-row gap-12 sm:gap-12">
-        {/* Left: Images */}
-        <div className="flex-1 flex flex-col-reverse gap-3 sm:flex-row">
-          {/* Thumbnails (max 4 shown) */}
-          <div className="flex sm:flex-col overflow-x-auto sm:overflow-y-scroll justify-between sm:justify-normal sm:w-[18.7%] w-full">
-            {images.length > 0 &&
-              images
-                .slice(0, 4)
-                .map((item, index) => (
-                  <img
-                    key={index}
-                    src={item}
-                    onClick={() => setMainImage(item)}
-                    className="w-[24%] sm:w-full sm:mb-3 flex-shrink-0 cursor-pointer border border-gray-200 hover:border-orange-500"
-                    alt={`Thumbnail ${index + 1}`}
-                  />
-                ))}
-          </div>
-
-          {/* Main Image */}
-          <div className="w-full sm:w-[80%]">
-            <img
-              className="w-full h-auto object-contain"
-              src={mainImage}
-              alt="Product Main"
-            />
-          </div>
-        </div>
-
-        {/* Right: Product Info */}
-        <div className="flex-1">
-          <h1 className="font-medium text-2xl mt-2">{productData.name}</h1>
-          <div className="flex items-center gap-1 mt-2">
-            {[1, 2, 3, 4].map((i) => (
-              <img key={i} src={assets.star_icon} alt="" className="w-3.5" />
-            ))}
-            <img src={assets.star_dull_icon} alt="" className="w-3.5" />
-            <p className="pl-2">(122)</p>
-          </div>
-          <p className="mt-5 text-3xl font-medium">
-            {currency}
-            {productData.price}
-          </p>
-          <p className="mt-5 text-gray-500 md:w-4/5">
-            {productData.description}
-          </p>
-
-          {/* Sizes */}
-          <div className="flex flex-col gap-4 my-8 ">
-            <p>Select Size</p>
-            <div className="flex gap-2 flex-wrap">
-              {productData.sizes.split(",").map((item, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSize(item)}
-                  className={`bg-gray-100 py-2 px-4 border ${
-                    item === size ? "border-orange-500" : "border-gray-300"
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Add to cart */}
-          <button
-            onClick={handleAddToCart}
-            className="bg-black text-white px-8 py-3 text-sm active:bg-gray-700"
-          >
-            ADD TO CART
-          </button>
-
-          <hr className="mt-8 sm:w-4/5" />
-          <div className="text-sm text-gray-500 mt-5 flex flex-col gap-1">
-            <p>100% Original products.</p>
-            <p>Cash on delivery is available on this product.</p>
-            <p>Easy return and exchange policy within 7 days.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Related Products */}
-      <RelatedProducts
-        category={productData.category}
-        subCategory={productData.subCategory}
-      />
-    </div>
-  );
-};
-
-export default Product;
--------------------------------------------------------------------------------------------
-
-
+// import { createContext, useState, useEffect } from "react";
+// import { toast } from "react-toastify";
+// import { useNavigate } from "react-router-dom";
+// import axios from "axios";
+
+// export const ShopContext = createContext();
+
+// const ShopContextProvider = (props) => {
+//   const currency = "$";
+//   const delivery_fee = 10;
+
+//   const [search, setSearch] = useState("");
+//   const [showSearch, setShowSearch] = useState(false);
+//   const [products, setProducts] = useState([]);
+//   const [cartItems, setCartItems] = useState({});
+//   const [user, setUser] = useState(null);
+//   const [isAuthenticated, setIsAuthenticated] = useState(false);
+//   const [category, setCategory] = useState([]);
+//   const [subCategory, setSubCategory] = useState([]);
+//   const [sortType, setSortType] = useState("relavent");
+//   const [loading, setLoading] = useState(false);
+
+//   const navigate = useNavigate();
+
+//   // Define fetchProducts function
+//   const fetchProducts = async () => {
+//     setLoading(true);
+//     try {
+//       const response = await axios.get("https://localhost:7039/api/Products");
+//       setProducts(response.data);
+//     } catch (error) {
+//       console.error("Error fetching products:", error);
+//       toast.error("Error fetching products: " + error.message);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   // Fetch products when component mounts
+//   useEffect(() => {
+//     fetchProducts(); // Call the function here
+//   }, []);
+
+//   // Restore user session and cart items on page load
+//   useEffect(() => {
+//     const token = localStorage.getItem("token");
+//     const storedUser = localStorage.getItem("user");
+
+//     if (token && storedUser) {
+//       const parsedUser = JSON.parse(storedUser);
+//       setUser(parsedUser);
+//       setIsAuthenticated(true);
+
+//       const savedCart = localStorage.getItem(`cart_${parsedUser.username}`);
+//       if (savedCart) {
+//         setCartItems(JSON.parse(savedCart));
+//       }
+//     }
+
+//     const storedCategory = JSON.parse(localStorage.getItem("category")) || [];
+//     const storedSubCategory =
+//       JSON.parse(localStorage.getItem("subCategory")) || [];
+//     const storedSortType = localStorage.getItem("sortType") || "relavent";
+//     setCategory(storedCategory);
+//     setSubCategory(storedSubCategory);
+//     setSortType(storedSortType);
+//   }, []);
+
+//   // Persist cart when it changes
+//   useEffect(() => {
+//     if (user?.username) {
+//       localStorage.setItem(`cart_${user.username}`, JSON.stringify(cartItems));
+//     }
+//   }, [cartItems, user]);
+
+//   useEffect(() => {
+//     localStorage.setItem("category", JSON.stringify(category));
+//     localStorage.setItem("subCategory", JSON.stringify(subCategory));
+//     localStorage.setItem("sortType", sortType);
+//   }, [category, subCategory, sortType]);
+
+//   const addToCart = async (itemId, size) => {
+//     if (!isAuthenticated) {
+//       toast.error("Please login to add items to cart");
+//       return;
+//     }
+
+//     if (!size) {
+//       toast.error("Select Product Size");
+//       return;
+//     }
+
+//     let cartData = { ...cartItems };
+
+//     if (cartData[itemId]) {
+//       cartData[itemId][size] = (cartData[itemId][size] || 0) + 1;
+//     } else {
+//       cartData[itemId] = { [size]: 1 };
+//     }
+
+//     setCartItems(cartData);
+//   };
+
+//   const getCartCount = () => {
+//     if (!isAuthenticated) return 0;
+
+//     let totalCount = 0;
+//     for (const itemId in cartItems) {
+//       for (const size in cartItems[itemId]) {
+//         totalCount += cartItems[itemId][size];
+//       }
+//     }
+//     return totalCount;
+//   };
+//   const updateQuantity = async (itemId, size, quantity) => {
+//     const updatedCart = { ...cartItems };
+
+//     if (!updatedCart[itemId]) {
+//       updatedCart[itemId] = {};
+//     }
+
+//     if (quantity <= 0) {
+//       // Remove the item size from cart
+//       delete updatedCart[itemId][size];
+//       if (Object.keys(updatedCart[itemId]).length === 0) {
+//         delete updatedCart[itemId];
+//       }
+//     } else {
+//       // Update the item quantity
+//       updatedCart[itemId][size] = quantity;
+//     }
+
+//     setCartItems(updatedCart);
+
+//     // Update localStorage with the modified cart
+//     if (user?.username) {
+//       localStorage.setItem(
+//         `cart_${user.username}`,
+//         JSON.stringify(updatedCart)
+//       );
+//     }
+//   };
+
+//   const getCartAmount = () => {
+//     if (!isAuthenticated) return 0;
+
+//     let totalAmount = 0;
+//     for (const itemId in cartItems) {
+//       const item = products.find((p) => p.id === parseInt(itemId));
+//       if (item) {
+//         for (const size in cartItems[itemId]) {
+//           totalAmount += item.price * cartItems[itemId][size];
+//         }
+//       }
+//     }
+//     return totalAmount;
+//   };
+
+//   const getCartTotal = () => {
+//     const subtotal = getCartAmount();
+//     return { subtotal, total: subtotal + delivery_fee };
+//   };
+
+//   // Define the addProduct function
+//   const addProduct = (newProduct) => {
+//     setProducts((prevProducts) => [...prevProducts, newProduct]);
+//   };
+
+//   const login = async (username, password) => {
+//     try {
+//       const response = await axios.post(
+//         "https://localhost:7039/api/Auth/login",
+//         { username, password }
+//       );
+
+//       const { token, role } = response.data;
+
+//       localStorage.setItem("token", token);
+//       localStorage.setItem("user", JSON.stringify({ username, role }));
+
+//       setUser({ username, role });
+//       setIsAuthenticated(true);
+
+//       const savedCart = localStorage.getItem(`cart_${username}`);
+//       if (savedCart) {
+//         setCartItems(JSON.parse(savedCart));
+//       } else {
+//         setCartItems({});
+//       }
+
+//       toast.success("Login successful!");
+//       navigate("/");
+//     } catch (error) {
+//       toast.error("Login failed: " + (error.response?.data || error.message));
+//     }
+//   };
+
+//   const register = async (username, password) => {
+//     try {
+//       await axios.post("https://localhost:7039/api/Auth/register", {
+//         username,
+//         password,
+//       });
+//       toast.success("Registration successful! Please log in.");
+//     } catch (error) {
+//       toast.error(
+//         "Registration failed: " + (error.response?.data || error.message)
+//       );
+//     }
+//   };
+
+//   const logout = () => {
+//     if (user?.username) {
+//       localStorage.setItem(`cart_${user.username}`, JSON.stringify(cartItems));
+//     }
+
+//     setUser(null);
+//     setIsAuthenticated(false);
+//     setCartItems({});
+//     localStorage.removeItem("token");
+//     localStorage.removeItem("user");
+
+//     toast.success("Logged out successfully!");
+//     navigate("/login");
+//   };
+
+//   const value = {
+//     products,
+//     setProducts,
+//     fetchProducts,
+//     currency,
+//     delivery_fee,
+//     search,
+//     setSearch,
+//     showSearch,
+//     setShowSearch,
+//     cartItems,
+//     addToCart,
+//     getCartCount,
+//     updateQuantity,
+//     getCartAmount,
+//     getCartTotal,
+//     addProduct, // Ensure this is part of the context
+//     login,
+//     register,
+//     logout,
+//     user,
+//     isAuthenticated,
+//     category,
+//     setCategory,
+//     subCategory,
+//     setSubCategory,
+//     sortType,
+//     setSortType,
+//     navigate,
+//     loading,
+//   };
+
+//   return (
+//     <ShopContext.Provider value={value}>{props.children}</ShopContext.Provider>
+//   );
+// };
+
+// export default ShopContextProvider;
 
 import { createContext, useState, useEffect } from "react";
 import { toast } from "react-toastify";
@@ -954,135 +272,192 @@ export const ShopContext = createContext();
 
 const ShopContextProvider = (props) => {
   const currency = "$";
-  const delivery_fee = 10; // Shipping fee
+  const delivery_fee = 10;
+
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const [cartItems, setCartItems] = useState({});
   const [products, setProducts] = useState([]);
-
-  // User Authentication States
-  const [user, setUser] = useState(null); // User state for storing authenticated user data
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Track if the user is authenticated
+  const [cartItems, setCartItems] = useState([]);
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [category, setCategory] = useState([]);
+  const [subCategory, setSubCategory] = useState([]);
+  const [sortType, setSortType] = useState("relavent");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
-  // Fetch products from API on component mount
-  useEffect(() => {
-    axios
-      .get("https://localhost:7039/api/Products")
-      .then((response) => {
-        setProducts(response.data);
-        console.log("Fetched products:", response.data); // Log the response for debugging
-      })
-      .catch((error) => {
-        console.error("Error fetching products:", error); // Log error in console for debugging
-        toast.error("Error fetching products: " + error.message); // Show error message to the user
-      });
-  }, []);
-
-  // Add a new product to the product list in context
-  const addProduct = (newProduct) => {
-    setProducts((prevProducts) => [...prevProducts, newProduct]);
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get("https://localhost:7039/api/Products");
+      setProducts(response.data);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast.error("Error fetching products: " + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const addToCart = async (itemId, size) => {
+  const fetchCart = async (userId) => {
+    try {
+      const response = await axios.get(
+        `https://localhost:7039/api/cart/user/${userId}`
+      );
+      setCartItems(response.data || []);
+    } catch (error) {
+      console.error("Error fetching cart:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+
+    if (token && storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      setIsAuthenticated(true);
+      fetchCart(parsedUser.userId);
+    }
+
+    const storedCategory = JSON.parse(localStorage.getItem("category")) || [];
+    const storedSubCategory =
+      JSON.parse(localStorage.getItem("subCategory")) || [];
+    const storedSortType = localStorage.getItem("sortType") || "relavent";
+    setCategory(storedCategory);
+    setSubCategory(storedSubCategory);
+    setSortType(storedSortType);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("category", JSON.stringify(category));
+    localStorage.setItem("subCategory", JSON.stringify(subCategory));
+    localStorage.setItem("sortType", sortType);
+  }, [category, subCategory, sortType]);
+
+  const addToCart = async (productId, size) => {
+    if (!isAuthenticated) {
+      toast.error("Please login to add items to cart");
+      return;
+    }
     if (!size) {
       toast.error("Select Product Size");
       return;
     }
-    let cartData = structuredClone(cartItems);
-    if (cartData[itemId]) {
-      if (cartData[itemId][size]) {
-        cartData[itemId][size] += 1;
+
+    try {
+      const existingItem = cartItems.find(
+        (item) => item.productId === parseInt(productId) && item.size === size
+      );
+
+      if (existingItem) {
+        await updateQuantity(productId, size, existingItem.quantity + 1);
       } else {
-        cartData[itemId][size] = 1;
+        const payload = {
+          userId: user.userId,
+          productId: parseInt(productId),
+          quantity: 1,
+          size,
+        };
+        await axios.post("https://localhost:7039/api/cart/add", payload);
+        fetchCart(user.userId);
+        toast.success("Item added to cart");
       }
-    } else {
-      cartData[itemId] = {};
-      cartData[itemId][size] = 1;
+    } catch (error) {
+      toast.error("Error adding to cart: " + error.message);
     }
-    setCartItems(cartData);
+  };
+
+  const updateQuantity = async (productId, size, quantity) => {
+    try {
+      const itemToUpdate = cartItems.find(
+        (item) => item.productId === parseInt(productId) && item.size === size
+      );
+      if (!itemToUpdate) return;
+
+      if (quantity <= 0) {
+        await axios.delete(
+          `https://localhost:7039/api/cart/delete/${itemToUpdate.cartId}`
+        );
+        toast.success("Item removed from cart");
+      } else {
+        const payload = {
+          ...itemToUpdate,
+          quantity,
+        };
+        await axios.put(
+          `https://localhost:7039/api/cart/update/${itemToUpdate.cartId}`,
+          payload
+        );
+        toast.success("Cart updated");
+      }
+
+      fetchCart(user.userId);
+    } catch (error) {
+      toast.error("Error updating cart: " + error.message);
+    }
   };
 
   const getCartCount = () => {
-    let totalCount = 0;
-    for (const items in cartItems) {
-      for (const item in cartItems[items]) {
-        if (cartItems[items][item] > 0) {
-          totalCount += cartItems[items][item];
-        }
-      }
-    }
-    return totalCount;
+    return cartItems.reduce((total, item) => total + item.quantity, 0);
   };
 
-  const updateQuantity = async (itemId, size, quantity) => {
-    let cartData = structuredClone(cartItems);
-    cartData[itemId][size] = quantity;
-    setCartItems(cartData);
-  };
-
-  // Calculate cart amount (subtotal)
   const getCartAmount = () => {
-    let totalAmount = 0;
-    for (const items in cartItems) {
-      const itemInfo = products.find(
-        (product) => product.id === parseInt(items)
-      ); // Ensure correct type matching
-      if (itemInfo) {
-        for (const size in cartItems[items]) {
-          if (cartItems[items][size] > 0) {
-            totalAmount += itemInfo.price * cartItems[items][size];
-          }
-        }
-      }
-    }
-    return totalAmount;
+    return cartItems.reduce((total, item) => {
+      const product = products.find((p) => p.id === item.productId);
+      return product ? total + product.price * item.quantity : total;
+    }, 0);
   };
 
-  // Calculate cart total including shipping fee
   const getCartTotal = () => {
     const subtotal = getCartAmount();
-    const total = subtotal + delivery_fee; // Add shipping fee to subtotal
-    return { subtotal, total };
+    return { subtotal, total: subtotal + delivery_fee };
   };
 
-  // User authentication logic
+  const addProduct = (newProduct) => {
+    setProducts((prevProducts) => [...prevProducts, newProduct]);
+  };
+
   const login = async (username, password) => {
     try {
       const response = await axios.post(
         "https://localhost:7039/api/Auth/login",
-        {
-          username,
-          password,
-        }
+        { username, password }
       );
 
-      const { token, role } = response.data;
-      localStorage.setItem("token", token); // Save token in localStorage
-      setUser({ username, role }); // Store user data in state
-      setIsAuthenticated(true); // Set authenticated status
+      const { token, role, userId } = response.data;
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify({ username, role, userId }));
+
+      setUser({ username, role, userId });
+      setIsAuthenticated(true);
+
+      await fetchCart(userId);
+
       toast.success("Login successful!");
-      navigate("/"); // Redirect to home page after successful login
+      navigate("/");
     } catch (error) {
-      toast.error("Login failed: " + error.response?.data || error.message);
+      toast.error("Login failed: " + (error.response?.data || error.message));
     }
   };
 
-  const register = async (username, password, role) => {
+  const register = async (username, password) => {
     try {
-      const response = await axios.post(
-        "https://localhost:7039/api/Auth/register",
-        {
-          username,
-          password,
-          role,
-        }
-      );
+      await axios.post("https://localhost:7039/api/Auth/register", {
+        username,
+        password,
+      });
       toast.success("Registration successful! Please log in.");
     } catch (error) {
       toast.error(
-        "Registration failed: " + error.response?.data || error.message
+        "Registration failed: " + (error.response?.data || error.message)
       );
     }
   };
@@ -1090,14 +465,18 @@ const ShopContextProvider = (props) => {
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
+    setCartItems([]);
     localStorage.removeItem("token");
-    toast.success("Logged out successfully!");
+    localStorage.removeItem("user");
 
-    window.location.href = "/login"; // ✅ Forces a reload and sends user to login
+    toast.success("Logged out successfully!");
+    navigate("/login");
   };
 
   const value = {
     products,
+    setProducts,
+    fetchProducts,
     currency,
     delivery_fee,
     search,
@@ -1110,13 +489,20 @@ const ShopContextProvider = (props) => {
     updateQuantity,
     getCartAmount,
     getCartTotal,
-    addProduct, // Provide the addProduct method to context
-    login, // Provide login method to context
-    register, // Provide register method to context
-    logout, // Provide logout method to context
-    user, // Provide user data to context
-    isAuthenticated, // Provide authentication status
+    addProduct,
+    login,
+    register,
+    logout,
+    user,
+    isAuthenticated,
+    category,
+    setCategory,
+    subCategory,
+    setSubCategory,
+    sortType,
+    setSortType,
     navigate,
+    loading,
   };
 
   return (
@@ -1125,99 +511,3 @@ const ShopContextProvider = (props) => {
 };
 
 export default ShopContextProvider;
- 
- ------------------------------------------------------------------------------------------------
- 
- import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import { ShopContext } from "../context/ShopContext";
-
-const Login = () => {
-  const [currentState, setCurrentState] = useState("Sign Up");
-  const [email, setEmail] = useState(""); // Email is used as username
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState("");
-
-  const { login, register } = useContext(ShopContext); // ✅ Use login & register from context
-  const navigate = useNavigate();
-
-  const onSubmitHandler = async (event) => {
-    event.preventDefault();
-
-    try {
-      if (currentState === "Login") {
-        await login(email, password); // ✅ Call context login()
-      } else {
-        await register(email, password, role); // ✅ Call context register()
-        setCurrentState("Login"); // Switch to login after success
-      }
-    } catch (error) {
-      console.error("Authentication error:", error);
-      alert("Error during authentication. Please try again.");
-    }
-  };
-
-  return (
-    <form
-      onSubmit={onSubmitHandler}
-      className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto mt-14 gap-4 text-gray-800"
-    >
-      <div className="inline-flex items-center gap-2 mb-2 mt-10">
-        <p className="prata-regular text-3xl">{currentState}</p>
-        <hr className="border-none h-[1.5px] w-8 bg-gray-800" />
-      </div>
-
-      {currentState === "Sign Up" && (
-        <input
-          type="text"
-          className="w-full px-3 py-2 border border-gray-800"
-          placeholder="Role"
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          required
-        />
-      )}
-
-      <input
-        type="text"
-        className="w-full px-3 py-2 border border-gray-800"
-        placeholder="Username"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
-      <input
-        type="password"
-        className="w-full px-3 py-2 border border-gray-800"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-      />
-      <div className="w-full flex justify-between text-sm mt-[-8px]">
-        <p className="cursor-pointer">Forgot your password?</p>
-        {currentState === "Login" ? (
-          <p
-            onClick={() => setCurrentState("Sign Up")}
-            className="cursor-pointer"
-          >
-            Create account
-          </p>
-        ) : (
-          <p
-            onClick={() => setCurrentState("Login")}
-            className="cursor-pointer"
-          >
-            Login Here
-          </p>
-        )}
-      </div>
-      <button className="bg-black text-white font-light px-8 py-2 mt-4">
-        {currentState === "Login" ? "Sign In" : "Sign Up"}
-      </button>
-    </form>
-  );
-};
-
-export default Login;
