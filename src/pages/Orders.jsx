@@ -82,15 +82,19 @@ const Orders = () => {
                           {new Date(order.date).toLocaleString()}
                         </span>
                       </p>
+                      <p className="mt-2">Payment: {order.paymentMethod}</p>
                     </div>
 
                     {/* Right: Order Status & Track */}
                     <div className="flex items-center gap-4 mt-6">
                       <div className="flex items-center gap-2">
                         <p className="min-w-2 h-2 rounded-full bg-green-500"></p>
-                        <p className="text-sm md:text-base">Ready to Ship</p>
+                        <p className="text-sm md:text-base">{order.status}</p>
                       </div>
-                      <button className="border px-4 py-2 text-sm font-medium rounded-sm">
+                      <button
+                        // onClick={loadOrderData}
+                        className="border px-4 py-2 text-sm font-medium rounded-sm"
+                      >
                         Track Order
                       </button>
                     </div>

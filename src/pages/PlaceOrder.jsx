@@ -87,6 +87,7 @@ const PlaceOrder = () => {
         paymentMethod: method.toUpperCase(),
         payment: false,
         date: Date.now(),
+        // date: new Date(item.date).toDateString(),
       };
 
       const response = await axios.post(

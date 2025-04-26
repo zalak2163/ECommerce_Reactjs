@@ -70,11 +70,13 @@ import Razorpay_logo from "../assets/Razorpay_logo.png";
 import Contact_img from "../assets/Contact_img.png";
 
 import add_icon from "../assets/add_icon.png";
+import parcel_icon from "../assets/parcel_icon.png";
 import order_icon from "../assets/order_icon.png";
 import uploade_area_icon from "../assets/uploade_area_icon.png";
 
 export const assets = {
   bin_icon,
+  parcel_icon,
   edit_icon,
   cross_icon,
   cart_icon,
